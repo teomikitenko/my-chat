@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <style>
+      .conteiner {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+      }
+      .mess {
+        margin: 4px;
+        padding-left: 9px;
+        background-color: aqua;
+        height: 25px;
+        width: 400px;
+        align-content: center;
+        border-radius: 6px;
+      }
+      #error {
+        display: none;
+        color: red;
+        background-color: aqua;
+        width: 150px;
+        height: 25px;
+      }
+    </style>
+    <input id="chat" type="text" />
+    <button>Відправити</button>
+
+    Введіть ваш нік: <input type="text" id="names" />
+    <button id="sendlog">Підтвердити</button>
+    <button id="exit">Вийти з чату</button>
+    <div id="error"></div>
+
+    <div class="conteiner">
+      <ul></ul>
+    </div>
+    <script>
+      let sendButton = document.querySelector("button");
+      let input = document.querySelector("#chat");
+      let socket = new WebSocket("ws://localhost:9001");
+      let span = document.querySelector("span");
+      let form = document.forms[0];
+      let inputLog = document.querySelector("#names");
+      let subLog = document.querySelector("#sendlog");
+      let chat = document.querySelector(".conteiner");
+      let spisok = document.querySelector("ul");
+      let exit = document.querySelector("#exit");
+      let rino = false;
+      let currentName;
+      let err = document.querySelector("#error");
+       let active=false
+      let flag = false;
+      window.addEventListener("unload", deleteUser);
+      exit.addEventListener("click", deleteUser);
+      function deleteUser() {
+        socket.send(JSON.stringify({ type: "exit", user: currentName }));
+        console.log(spisok.childNodes);
+      }
+      subLog.addEventListener("click", function () {
+        err.style.display = "none";
+
+        currentName = inputLog.value;
+       
+        let mess = JSON.stringify({ type: "users", text: currentName });
+        socket.send(mess);
+         if(active){          rino = true;
+}
+        
+        inputLog.value = "";
+        inputLog.setAttribute("readonly", "readonly");
+        subLog.setAttribute("disabled", "disabled");
+     
+ 
+      });
+      sendButton.addEventListener("click", function () {
+        let mess = JSON.stringify({
+          type: "message",
+          user: currentName,
+          text: input.value,
+        });
+
+        chat.insertAdjacentHTML(
+          "beforeend",
+          `<div class='mess'>Ти:${input.value}</div>`
+        );
+        socket.send(mess);
+        input.value = "";
+      });
+
+      socket.onmessage = (event) => {
+        let mess = JSON.parse(event.data);
+        console.log("You have 1 new message!", mess);
+
+        if (mess.type === "users") {
+          for (kid of spisok.childNodes) {
+            if(kid.textContent==mess.text){
+              kid.remove()
+            }
+          }
+          let li = document.createElement("li");
+          li.textContent = mess.text;
+          spisok.append(li);
+        } else if (mess.type === "message") {
+          chat.insertAdjacentHTML(
+            "beforeend",
+            `<div class='mess'>${mess.user}:${mess.text}</div>`
+          );
+        } else if (mess.type === "error") {
+          inputLog.value = "";
+          err.style.display = "block";
+          active=true
+          err.textContent = `${mess.user} вже використовується,введіть нік ще раз`;
+          inputLog.removeAttribute("readonly");
+          subLog.removeAttribute("disabled");
+          spisok.innerHTML=''
+        } else if (mess.type === "exit") {
+          for (kid of spisok.childNodes) {
+            if (kid.textContent === mess.user) {
+              kid.remove();
+            }
+          }
+        } else {
+          if (!flag||rino) {
+            for (i = 0; i < mess.length; i++) {
+              let id = mess[i];
+              if(currentName!==id){
+              
+              console.log(mess[i]);
+              let li = document.createElement("li");
+              li.textContent = mess[i];
+              spisok.append(li);
+              }
+            }
+          }
+        }
+        flag = true;
+        rino = false;
+      };
+      socket.onclose = (event) => {
+       
+        console.log(event);
+      };
+      socket.onerror = (er) => {
+        console.log(er.message);
+      };
+    </script>
+  </body>
+</html>
